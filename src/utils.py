@@ -1,7 +1,9 @@
 from telegram import InputMediaAudio, InputMediaDocument, InputMediaPhoto, InputMediaVideo, \
     InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import ContextTypes
 
 from src.config import ReviewConfig
+from src.database.posts import PostModel, PostStatus
 
 MEDIA_GROUPS = {}
 
@@ -104,3 +106,41 @@ def generate_reject_keyboard(post_id: str, ) -> InlineKeyboardMarkup:
         ]
     )
     return InlineKeyboardMarkup(keyboard)
+
+
+async def notify_submitter(post_data: PostModel, context: ContextTypes.DEFAULT_TYPE, msg: str) -> None:
+    post_msg_id = post_data.publish_msg_id
+    if post_data.status == PostStatus.APPROVED.value:
+        message_text = msg
+        chat_id = str(ReviewConfig.PUBLISH_CHANNEL)
+        if chat_id.startswith("-100"):
+            chat_id = chat_id[4:]
+            url = f"https://t.me/c/{chat_id}/{post_msg_id}"
+        else:
+            url = f"https://t.me/{chat_id}/{post_msg_id}"
+        keyboard = InlineKeyboardMarkup(
+            [[InlineKeyboardButton("在频道中查看", url=url),
+              InlineKeyboardButton("查看评论区", url=url + "?comment=1")]]
+        )
+    elif post_data.status == PostStatus.REJECTED.value:
+        if not ReviewConfig.RETRACT_NOTIFY:
+            return
+        message_text = msg
+        chat_id = str(ReviewConfig.REJECTED_CHANNEL)
+        if chat_id.startswith("-100"):
+            chat_id = chat_id[4:]
+            url = f"https://t.me/c/{chat_id}/{post_msg_id}"
+        else:
+            url = f"https://t.me/{chat_id}/{post_msg_id}"
+        keyboard = InlineKeyboardMarkup(
+            [[InlineKeyboardButton("在拒稿频道中查看", url=url)]]
+        )
+    else:
+        message_text = "来自审核的回复消息：" + msg
+        keyboard = None
+    await context.bot.send_message(
+        chat_id=post_data.submitter_id,
+        text=message_text,
+        reply_markup=keyboard,
+        parse_mode="HTML",
+    )

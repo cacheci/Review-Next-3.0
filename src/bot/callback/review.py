@@ -10,7 +10,7 @@ from src.bot.callback import check_duplicate_cbq
 from src.config import ReviewConfig
 from src.database.posts import get_post_db, PostLogModel, VoteType, PostModel, PostStatus
 from src.database.users import UserOperation, get_users_db, SubmitterModel
-from src.utils import MEDIA_GROUP_TYPES, generate_reject_keyboard
+from src.utils import MEDIA_GROUP_TYPES, generate_reject_keyboard, notify_submitter
 
 
 async def check_post_status(post_data: PostModel, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -145,8 +145,10 @@ async def check_post_status(post_data: PostModel, context: ContextTypes.DEFAULT_
                 post_data.finish_at = int(time.time())
                 await post_db_session.merge(post_data)
     if post_data.status == PostStatus.APPROVED.value:
+        await notify_submitter(post_data, context, "您的投稿已通过审核！")
         return 1
     else:
+        await notify_submitter(post_data, context, "您的投稿被拒绝。\n拒绝原因: <b>" + reason + "</b>")
         return 2
 
 
