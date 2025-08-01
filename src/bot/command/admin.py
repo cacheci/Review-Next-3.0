@@ -4,16 +4,19 @@ from sqlalchemy import select
 from telegram import Update
 from telegram.ext import ContextTypes
 
+from src.bot import check_reviewer
 from src.database.posts import get_post_db, PostModel
 from src.database.users import get_users_db, ReviewerModel
+from src.utils import notify_submitter
 
 
+@check_reviewer
 async def append_comment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     message = update.message
     post_id, comment = message.text.split(" ", 1)[1].split("###", 1)
     post_id = int(post_id.strip())
     comment = comment.strip()
-    eff_user = message.from_user
+    eff_user = update.effective_user
     if not comment:
         await message.reply_text("请提供要添加的备注内容。")
         return
@@ -37,11 +40,12 @@ async def append_comment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         f"已添加备注：{comment} 到投稿 ID {post_id}。\n")
 
 
+@check_reviewer
 async def remove_comment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     message = update.message
     post_id = message.text.split(" ", 1)[1]
     post_id = int(post_id.strip())
-    eff_user = message.from_user
+    eff_user = update.effective_user
     async with get_post_db() as session:
         async with session.begin():
             post_info = await session.execute(select(PostModel).filter_by(id=post_id))
@@ -76,3 +80,21 @@ async def become_reviewer(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 await update.message.reply_text("您已成为审核员。")
             else:
                 await update.message.reply_text("您已经是审核员了，无需再次申请。")
+
+
+@check_reviewer
+async def comment_submitter(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    post_id, comment = update.message.text.split(" ", 1)[1].split("###", 1)
+    post_id = int(post_id.strip())
+    comment = comment.strip()
+    if not comment:
+        await update.message.reply_text("请提供要添加的评论内容。")
+        return
+    async with get_post_db() as session:
+        post_info = await session.execute(select(PostModel).filter_by(id=post_id))
+        post_info = post_info.scalar_one_or_none()
+        if not post_info:
+            await update.message.reply_text(f"投稿 ID {post_id} 不存在。")
+            return
+        await notify_submitter(post_info, context, comment)
+    await update.message.reply_text("已向投稿者发送评论。")

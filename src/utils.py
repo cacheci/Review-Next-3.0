@@ -136,7 +136,7 @@ async def notify_submitter(post_data: PostModel, context: ContextTypes.DEFAULT_T
             [[InlineKeyboardButton("在拒稿频道中查看", url=url)]]
         )
     else:
-        message_text = "来自审核的回复消息：" + msg
+        message_text = "来自审核的回复消息：\n\n" + msg
         keyboard = None
     await context.bot.send_message(
         chat_id=post_data.submitter_id,

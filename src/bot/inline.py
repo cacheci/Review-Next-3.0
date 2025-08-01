@@ -24,8 +24,8 @@ async def inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         data = query.split("#", 1)
         id_data = data[0].replace("append_", "")
         id_data = int(id_data.strip())
-        append_text = data[1].strip() if len(data) > 1 else None
-        if not append_text:
+        comment_text = data[1].strip() if len(data) > 1 else None
+        if not comment_text:
             await update.inline_query.answer(
                 [InlineQueryResultArticle(
                     id=str(uuid4()),
@@ -37,11 +37,11 @@ async def inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         await update.inline_query.answer(
             [InlineQueryResultArticle(
                 id=str(uuid4()),
-                title=f"点此确认添加备注：{append_text}",
-                input_message_content=InputTextMessageContent(f"/append {id_data}###{append_text}")
+                title=f"点此确认添加备注：{comment_text}",
+                input_message_content=InputTextMessageContent(f"/append {id_data}###{comment_text}")
             )]
         )
-    if query.startswith("removeAppend_"):
+    elif query.startswith("removeAppend_"):
         # 删除备注
         id_data = query.replace("removeAppend_", "")
         id_data = int(id_data.strip())
@@ -50,5 +50,27 @@ async def inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
                 id=str(uuid4()),
                 title=f"点此确认移除你添加的备注",
                 input_message_content=InputTextMessageContent(f"/removeAppend {id_data}")
+            )]
+        )
+    elif query.startswith("comment_"):
+        # 删除备注
+        data = query.split("#", 1)
+        id_data = data[0].replace("comment_", "")
+        id_data = int(id_data.strip())
+        comment_text = data[1].strip() if len(data) > 1 else None
+        if not comment_text:
+            await update.inline_query.answer(
+                [InlineQueryResultArticle(
+                    id=str(uuid4()),
+                    title="请在输入框内输入回复内容",
+                    input_message_content=InputTextMessageContent("请在输入框内输入回复内容")
+                )]
+            )
+            return None
+        await update.inline_query.answer(
+            [InlineQueryResultArticle(
+                id=str(uuid4()),
+                title=f"点此回复内容：{comment_text}",
+                input_message_content=InputTextMessageContent(f"/comment {id_data}###{comment_text}")
             )]
         )
