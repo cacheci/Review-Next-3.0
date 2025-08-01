@@ -67,7 +67,7 @@ def generate_review_keyboard(post_id: str, ) -> InlineKeyboardMarkup:
                 ),
                 InlineKeyboardButton(
                     "⬅️ 删除备注",
-                    switch_inline_query_current_chat=f"removeAppend_{post_id}#",
+                    switch_inline_query_current_chat=f"removeAppend_{post_id}",
                 ),
             ],
             [

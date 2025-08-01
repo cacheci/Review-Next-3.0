@@ -7,7 +7,7 @@ from src.bot import message
 from src.bot.callback.review import vote_post, choose_reason, vote_revoke, vote_query
 from src.bot.callback.submit import confirm_submission
 from src.bot.callback.users import cancel
-from src.bot.command.admin import append_comment, become_reviewer
+from src.bot.command.admin import append_comment, become_reviewer, remove_comment
 from src.bot.inline import inline_query
 from src.config import BotConfig, Config, ReviewConfig
 from src.logger import bot_logger
@@ -48,7 +48,7 @@ def run_bot():
 
     application.add_handler(CommandHandler("append", append_comment, filters=filters.Chat(
         chat_id=ReviewConfig.REVIEWER_GROUP)))
-    application.add_handler(CommandHandler("removeAppend", append_comment, filters=filters.Chat(
+    application.add_handler(CommandHandler("removeAppend", remove_comment, filters=filters.Chat(
         chat_id=ReviewConfig.REVIEWER_GROUP)))
     application.add_handler(CommandHandler("reviewer", become_reviewer, filters=filters.Chat(
         chat_id=ReviewConfig.REVIEWER_GROUP)))

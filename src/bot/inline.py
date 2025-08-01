@@ -34,11 +34,21 @@ async def inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
                 )]
             )
             return None
-        # 处理添加备注逻辑
         await update.inline_query.answer(
             [InlineQueryResultArticle(
                 id=str(uuid4()),
                 title=f"点此确认添加备注：{append_text}",
                 input_message_content=InputTextMessageContent(f"/append {id_data}###{append_text}")
+            )]
+        )
+    if query.startswith("removeAppend_"):
+        # 删除备注
+        id_data = query.replace("removeAppend_", "")
+        id_data = int(id_data.strip())
+        await update.inline_query.answer(
+            [InlineQueryResultArticle(
+                id=str(uuid4()),
+                title=f"点此确认移除你添加的备注",
+                input_message_content=InputTextMessageContent(f"/removeAppend {id_data}")
             )]
         )

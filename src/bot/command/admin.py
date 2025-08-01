@@ -39,7 +39,7 @@ async def append_comment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
 
 async def remove_comment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     message = update.message
-    post_id = message.text.split(" ", 1)[1].split("###", 1)[0]
+    post_id = message.text.split(" ", 1)[1]
     post_id = int(post_id.strip())
     eff_user = message.from_user
     async with get_post_db() as session:

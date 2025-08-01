@@ -124,7 +124,6 @@ async def check_post_status(post_data: PostModel, context: ContextTypes.DEFAULT_
             media = []
             for media_item in media_list:
                 media.append(MEDIA_GROUP_TYPES[media_item["media_type"]](media=media_item["media_id"]))
-
             if is_nsfw:
                 inline_keyboard = InlineKeyboardMarkup(
                     [[InlineKeyboardButton("跳到下一条", url=f"https://t.me/")]]
@@ -134,7 +133,6 @@ async def check_post_status(post_data: PostModel, context: ContextTypes.DEFAULT_
                     text="⚠️ #NSFW 提前预警",
                     reply_markup=inline_keyboard,
                 )
-
             msg = await context.bot.send_media_group(chat_id=chat_id, media=media, caption=send_text, parse_mode="HTML",
                                                      has_spoiler=is_nsfw)
             pub_msg_id = msg[0].id
