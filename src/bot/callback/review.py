@@ -112,6 +112,13 @@ async def check_post_status(post_data: PostModel, context: ContextTypes.DEFAULT_
         if not chat_id:
             return 1  # 已拒绝但未选择理由
         send_text = post_data.text
+        # 审核评论处理
+        if post_data.other:
+            other_data = json.loads(post_data.other)
+            if "comment" in other_data:
+                comment = "\n\n".join(
+                    [f"<b>审核注:</b> {c['comment']}" for c in other_data["comment"]])
+                send_text += f"\n{comment}"
         media_list = json.loads(post_data.attachment)
         if media_list:
             media = []
@@ -131,7 +138,15 @@ async def check_post_status(post_data: PostModel, context: ContextTypes.DEFAULT_
             msg = await context.bot.send_media_group(chat_id=chat_id, media=media, caption=send_text, parse_mode="HTML",
                                                      has_spoiler=is_nsfw)
             pub_msg_id = msg[0].id
-
+            if is_nsfw:
+                url_parts = msg[-1].link.rsplit("/", 1)
+                next_url = url_parts[0] + "/" + str(int(url_parts[-1]) + 1)
+                inline_keyboard = InlineKeyboardMarkup(
+                    [[InlineKeyboardButton("跳到下一条", url=next_url)]]
+                )
+                await skip_msg.edit_text(
+                    text="⚠️ #NSFW 提前预警", reply_markup=inline_keyboard
+                )
         else:
             msg = await context.bot.send_message(
                 chat_id=ReviewConfig.PUBLISH_CHANNEL,

@@ -48,6 +48,8 @@ def run_bot():
 
     application.add_handler(CommandHandler("append", append_comment, filters=filters.Chat(
         chat_id=ReviewConfig.REVIEWER_GROUP)))
+    application.add_handler(CommandHandler("removeAppend", append_comment, filters=filters.Chat(
+        chat_id=ReviewConfig.REVIEWER_GROUP)))
     application.add_handler(CommandHandler("reviewer", become_reviewer, filters=filters.Chat(
         chat_id=ReviewConfig.REVIEWER_GROUP)))
 
