@@ -7,7 +7,7 @@ from src.bot import message
 from src.bot.callback.review import vote_post, choose_reason, vote_revoke, vote_query
 from src.bot.callback.submit import confirm_submission
 from src.bot.callback.users import cancel
-from src.bot.command.admin import append_comment, become_reviewer, remove_comment, comment_submitter
+from src.bot.command.admin import append_comment, become_reviewer, remove_comment, comment_submitter, ban
 from src.bot.inline import inline_query
 from src.config import BotConfig, Config, ReviewConfig
 from src.logger import bot_logger
@@ -54,6 +54,7 @@ def run_bot():
         chat_id=ReviewConfig.REVIEWER_GROUP)))
     application.add_handler(CommandHandler("comment", comment_submitter, filters=filters.Chat(
         chat_id=ReviewConfig.REVIEWER_GROUP)))
+    application.add_handler(CommandHandler("ban", ban))
 
     # 内联查询
     application.add_handler(InlineQueryHandler(inline_query))

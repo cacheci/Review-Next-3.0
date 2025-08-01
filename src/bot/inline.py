@@ -38,7 +38,7 @@ async def inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             [InlineQueryResultArticle(
                 id=str(uuid4()),
                 title=f"点此确认添加备注：{comment_text}",
-                input_message_content=InputTextMessageContent(f"/append {id_data}###{comment_text}")
+                input_message_content=InputTextMessageContent(f"/append {id_data} {comment_text}")
             )]
         )
     elif query.startswith("removeAppend_"):
@@ -71,6 +71,6 @@ async def inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
             [InlineQueryResultArticle(
                 id=str(uuid4()),
                 title=f"点此回复内容：{comment_text}",
-                input_message_content=InputTextMessageContent(f"/comment {id_data}###{comment_text}")
+                input_message_content=InputTextMessageContent(f"/comment {id_data} {comment_text}")
             )]
         )

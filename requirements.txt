@@ -1,0 +1,4 @@
+SQLAlchemy~=2.0.42
+python-telegram-bot~=22.3
+toml~=0.10.2
+aiosqlite~=0.21.0
