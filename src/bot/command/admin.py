@@ -175,7 +175,6 @@ async def get_post_list(u_id: int, page: int = 0) -> bool | list[Any]:
             logs = result.scalars().all()
             if not logs:
                 posts_list.append(post.id)
-    bot_logger.info( posts_list)
     return posts_list
 
 
@@ -215,7 +214,6 @@ async def get_new_post(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def private_review(update: Update, context: ContextTypes.DEFAULT_TYPE):
     posts_list = context.user_data.get("review_posts", [])
     eff_user = update.effective_user
-    bot_logger.info(f"Private review for user {eff_user.id} started.")
     if update.callback_query:
         await update.callback_query.answer("正在尝试获取新的稿件")
     if update.effective_message.message_id:

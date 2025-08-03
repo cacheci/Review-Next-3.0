@@ -159,7 +159,6 @@ async def check_post_status(post_data: PostModel, context: ContextTypes.DEFAULT_
                 post_data.publish_msg_id = pub_msg_id
                 post_data.finish_at = int(time.time())
                 await post_db_session.merge(post_data)
-    bot_logger.info(f"Post {post_data.id} status updated to {post_data.status} by reviewer {last_reviewer_id}")
     if post_data.status == PostStatus.APPROVED.value:
         await notify_submitter(post_data, context, "您的投稿已通过审核！")
         return PostStatus.APPROVED.value
@@ -185,7 +184,6 @@ async def vote_post(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     vote_type = query_data[0]
     if vote_type.startswith("private"):
         vote_type = vote_type.replace("private#", "")
-    bot_logger.info(f"User {eff_user.id} ({eff_user.full_name}) voted on post {post_id} with type {vote_type}")
     is_change_vote = False
     # 获取稿件的信息
     async with get_post_db() as session:
@@ -228,7 +226,6 @@ async def vote_post(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         other_msg = "投票已更改"
     else:
         other_msg = "投票成功"
-    bot_logger.info(f"Post {post_id} with result {rev_ret}")
     if rev_ret == PostStatus.APPROVED.value:
         await query.answer(f"✅{other_msg}，此条投稿已通过")
         return PostStatus.APPROVED.value
@@ -344,7 +341,6 @@ async def private_vote(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await eff_user.send_message("❗️请重新发送命令开始审核。")
         return 1
     post_id = context.user_data["review_private_id"]
-    bot_logger.info(f"User {eff_user.id} ({eff_user.full_name}) voted on post {post_id} with result {vote_ret}")
     if vote_ret == -1:
         await eff_user.send_message("❗️投票失败，可能是因为此条投稿已被处理或不存在，请稍后再试。")
         return
@@ -362,10 +358,7 @@ async def private_vote(update: Update, context: ContextTypes.DEFAULT_TYPE):
             keyboard.append(row)
         keyboard.append(
             [
-                InlineKeyboardButton(
-                    "自定义理由",
-                    switch_inline_query_current_chat=f"private_reject_{post_id}# ",
-                ),
+                InlineKeyboardButton("自定义理由", switch_inline_query_current_chat=f"private_reject_{post_id}# "),
                 InlineKeyboardButton("忽略此投稿", callback_data="pri#reason_skip"),
                 InlineKeyboardButton(
                     "💬 回复投稿人",
