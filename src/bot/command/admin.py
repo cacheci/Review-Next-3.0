@@ -10,6 +10,7 @@ from telegram.ext import ContextTypes, ConversationHandler
 from src.bot import check_reviewer
 from src.database.posts import get_post_db, PostModel, PostStatus, PostLogModel
 from src.database.users import get_users_db, ReviewerModel, BannedUserModel, SubmitterModel
+from src.logger import bot_logger
 from src.utils import notify_submitter, MEDIA_GROUP_TYPES
 
 
@@ -157,7 +158,6 @@ async def unban(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def get_post_list(u_id: int, page: int = 0) -> bool | list[Any]:
-    print("1344")
     posts_list = []
     async with get_post_db() as session:
         posts = await session.execute(
@@ -175,22 +175,23 @@ async def get_post_list(u_id: int, page: int = 0) -> bool | list[Any]:
             logs = result.scalars().all()
             if not logs:
                 posts_list.append(post.id)
-    print(133, posts_list)
+    bot_logger.info( posts_list)
     return posts_list
 
 
 @check_reviewer
 async def private_review_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    print("Starting private review process")
+    bot_logger.info("Starting private review process")
     context.user_data["review_posts"] = []
     context.user_data["review_page"] = 0
     while True:
         ret = await get_new_post(update, context)
         if ret == ConversationHandler.END:
+            bot_logger.info("No more posts to review.")
             return ConversationHandler.END
         else:
-            if await private_review(update, context) == 2:
-                return 1
+            await private_review(update, context)
+            return 1
 
 
 async def get_new_post(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -208,16 +209,24 @@ async def get_new_post(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data["review_page"] += 1
         posts_list.extend(posts_new_list)
     context.user_data["review_posts"] = posts_list
-    print(posts_list)
     return 2
 
 
 async def private_review(update: Update, context: ContextTypes.DEFAULT_TYPE):
     posts_list = context.user_data.get("review_posts", [])
     eff_user = update.effective_user
+    bot_logger.info(f"Private review for user {eff_user.id} started.")
+    if update.callback_query:
+        await update.callback_query.answer("正在尝试获取新的稿件")
+    if update.effective_message.message_id:
+        try:
+            await update.effective_message.delete()
+        except Exception as e:
+            bot_logger.error(f"Failed to delete message: {e}")
     if not posts_list:
-        await eff_user.send_message("正在尝试获取新的稿件")
-        return 1
+        if await get_new_post(update, context) == ConversationHandler.END:
+            return ConversationHandler.END
+        posts_list = context.user_data.get("review_posts", [])
     cur_post_id = posts_list.pop(0)
     context.user_data["review_posts"] = posts_list
     async with get_post_db() as session:
@@ -225,13 +234,8 @@ async def private_review(update: Update, context: ContextTypes.DEFAULT_TYPE):
         post_info = post_info.scalar_one_or_none()
         if not post_info:
             await eff_user.send_message(f"稿件 ID {cur_post_id} 不存在。")
-            return 1
+            return
         # 发送稿件信息
-        # reply_kb = ReplyKeyboardMarkup([
-        #     ["✅SFW通过", "❌拒绝"],
-        #     ["✅NSFW通过", "❌重复投稿拒绝"],
-        #     ["➡️下一条", "/cancel 取消操作"],
-        # ], resize_keyboard=True)
         cur_id = str(cur_post_id)
         reply_kb  = InlineKeyboardMarkup([
             [InlineKeyboardButton("✅SFW通过", callback_data =f"private#approve_{cur_id}"),InlineKeyboardButton("❌拒绝", callback_data =f"private#reject_{cur_id}")],
@@ -259,4 +263,4 @@ async def private_review(update: Update, context: ContextTypes.DEFAULT_TYPE):
                                                  reply_markup=reply_kb)
             msg_id = msg.id
         context.user_data["review_private_id"] = msg_id
-    return 2
+    return

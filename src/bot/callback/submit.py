@@ -80,7 +80,6 @@ async def confirm_submission(update: Update, context: ContextTypes.DEFAULT_TYPE)
         msg = await context.bot.send_media_group(chat_id=ReviewConfig.REVIEWER_GROUP, media=media, caption=text,
                                                  parse_mode="HTML")
         msg_id = msg[0].id
-    print(json.dumps(media_database))
     clear_media_group(origin_message.media_group_id)
 
     send_msg = f"❔ 待审稿件\n投稿人： {user.full_name} (@{user.username}, {user.id})\n\n#USER_{user.id} #SUBMITTER_{user.id} #PENDING"

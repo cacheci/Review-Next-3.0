@@ -92,7 +92,7 @@ def generate_reject_keyboard(post_id: str, ) -> InlineKeyboardMarkup:
         [
             InlineKeyboardButton(
                 "自定义理由",
-                switch_inline_query_current_chat=f"reject_{post_id}# ",
+                switch_inline_query_current_chat=f"customReason_{post_id}# ",
             ),
             InlineKeyboardButton("忽略此投稿", callback_data="reason_skip"),
         ]

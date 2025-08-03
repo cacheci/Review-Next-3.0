@@ -5,7 +5,8 @@ from telegram.ext import Application, CallbackQueryHandler, CommandHandler, Inli
     ConversationHandler
 
 from src.bot import message
-from src.bot.callback.review import vote_post, choose_reason, vote_revoke, vote_query, private_vote
+from src.bot.callback.review import vote_post, choose_reason, vote_revoke, vote_query, private_vote, \
+    private_choose_reason
 from src.bot.callback.submit import confirm_submission
 from src.bot.callback.users import cancel
 from src.bot.command.admin import append_comment, become_reviewer, remove_comment, comment_submitter, ban, unban, \
@@ -46,10 +47,12 @@ def run_bot():
     application.add_handler(CallbackQueryHandler(vote_query, pattern="^voteQuery_"))
     application.add_handler(CallbackQueryHandler(vote_revoke, pattern="^voteRevoke_"))
 
+    # 选择拒绝原因
     application.add_handler(CallbackQueryHandler(choose_reason, pattern="^reason_"))
 
     #私聊审核
     application.add_handler(CallbackQueryHandler(private_vote, pattern="^private#"))
+    application.add_handler(CallbackQueryHandler(private_choose_reason, pattern="^pri#reason_"))
 
     #命令回调
     application.add_handler(CommandHandler("append", append_comment, filters=filters.Chat(
@@ -62,15 +65,15 @@ def run_bot():
         chat_id=ReviewConfig.REVIEWER_GROUP)))
     application.add_handler(CommandHandler("ban", ban))
     application.add_handler(CommandHandler("unban", unban))
-    application.add_handler(CommandHandler("cancel", cancel))
     # application.add_handler(CommandHandler("review", private_review, filters=filters.ChatType.PRIVATE))
     conv_handler = ConversationHandler(
         entry_points=[
             CommandHandler("review", private_review_start, filters=filters.ChatType.PRIVATE)
         ],
         states={
-            1: [CallbackQueryHandler(callback=get_new_post, pattern="next_review_")],
-            2: [MessageHandler(filters=~filters.UpdateType.EDITED_MESSAGE, callback=private_review)],
+            1: [CallbackQueryHandler(callback=private_review, pattern="next_post")],
+            2: [CallbackQueryHandler(callback=get_new_post, pattern="^private_reply_")],
+            3: [CallbackQueryHandler(callback=get_new_post, pattern="^private_reply_")],
         },
         fallbacks=[CommandHandler("cancel", cancel)],
     )

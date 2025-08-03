@@ -22,7 +22,7 @@ async def check_post_status(post_data: PostModel, context: ContextTypes.DEFAULT_
                 select(PostLogModel).filter_by(post_id=post_data.id).order_by(PostLogModel.operate_time.asc()))
             logs = result.scalars().all()
             if not logs:
-                return 0
+                return -1
             last_log = logs[-1]
             last_reviewer_id = last_log.reviewer_id
             is_nsfw = False
@@ -107,12 +107,12 @@ async def check_post_status(post_data: PostModel, context: ContextTypes.DEFAULT_
             chat_id = None
             keyboard = generate_reject_keyboard(str(post_data.id))
         elif post_data.status == PostStatus.PENDING.value:
-            return 3  # 仍在审核中
+            return PostStatus.PENDING.value  # 仍在审核中
         msg += " ".join(tag)
         await context.bot.edit_message_text(msg, ReviewConfig.REVIEWER_GROUP, post_data.operate_msg_id,
                                             parse_mode="HTML", reply_markup=keyboard)
         if not chat_id:
-            return 2  # 已拒绝但未选择理由
+            return PostStatus.NEED_REASON.value  # 已拒绝但未选择理由
         send_text = post_data.text
         # 审核评论处理
         if post_data.other:
@@ -162,10 +162,11 @@ async def check_post_status(post_data: PostModel, context: ContextTypes.DEFAULT_
     bot_logger.info(f"Post {post_data.id} status updated to {post_data.status} by reviewer {last_reviewer_id}")
     if post_data.status == PostStatus.APPROVED.value:
         await notify_submitter(post_data, context, "您的投稿已通过审核！")
-        return 1
+        return PostStatus.APPROVED.value
     else:
-        await notify_submitter(post_data, context, "您的投稿被拒绝。\n拒绝原因: <b>" + reason + "</b>")
-        return 2
+        if isinstance(reason, str) and reason != "":
+            await notify_submitter(post_data, context, "您的投稿被拒绝。\n拒绝原因: <b>" + reason + "</b>")
+        return PostStatus.REJECTED.value
 
 
 @check_reviewer
@@ -193,10 +194,10 @@ async def vote_post(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
             post_data = result.scalar_one_or_none()
             if not post_data:
                 await query.answer("❗️投稿不存在或已被处理，请稍后再试。")
-                return 0
+                return -1
             if post_data.status != PostStatus.PENDING.value:
                 await query.answer("❗️投稿已被处理，请稍后再试。")
-                return 0
+                return -1
             result = await session.execute(select(PostLogModel).filter_by(post_id=post_id, reviewer_id=eff_user.id))
             existing_log = result.scalar_one_or_none()
             if existing_log:
@@ -228,18 +229,21 @@ async def vote_post(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     else:
         other_msg = "投票成功"
     bot_logger.info(f"Post {post_id} with result {rev_ret}")
-    if rev_ret == 1:
+    if rev_ret == PostStatus.APPROVED.value:
         await query.answer(f"✅{other_msg}，此条投稿已通过")
-        return 1
-    elif rev_ret == 2:
+        return PostStatus.APPROVED.value
+    elif rev_ret == PostStatus.NEED_REASON.value:
         await query.answer(f"❎{other_msg}，此条投稿已被拒绝")
-        return 2
-    elif rev_ret == 3:
+        return PostStatus.NEED_REASON.value
+    elif rev_ret == PostStatus.REJECTED.value:
+        await query.answer(f"❎{other_msg}，此条投稿已经拒绝处理完成")
+        return PostStatus.REJECTED.value
+    elif rev_ret == PostStatus.PENDING.value:
         await query.answer(f"✅{other_msg}~")
-        return 3
+        return PostStatus.PENDING.value
     else:
         await query.answer("❗️投票失败，可能是因为此条投稿已被处理或不存在，请稍后再试。")
-        return 0
+        return -1
 
 
 @check_reviewer
@@ -253,10 +257,14 @@ async def choose_reason(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.answer("❗️无效的拒绝理由，请重新选择。")
         return
     post_id = int(query_data[1])
-    reason_index = int(query_data[2])
-    if reason_index < 0 or reason_index >= len(reason):
-        await query.answer("❗️无效的拒绝理由，请重新选择。")
-        return
+    if query_data[2] == "skip":
+        reason_msg = ""
+    else:
+        reason_index = int(query_data[2])
+        if reason_index < 0 or reason_index >= len(reason):
+            await query.answer("❗️无效的拒绝理由，请重新选择。")
+            return
+        reason_msg = reason[reason_index]
     async with get_post_db() as session:
         async with session.begin():
             result = await session.execute(select(PostModel).filter_by(id=post_id))
@@ -267,15 +275,15 @@ async def choose_reason(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if post_data.status != PostStatus.NEED_REASON.value:
                 await query.answer("❗️投稿状态不正确，请稍后再试。")
                 return
-    async with get_post_db() as session:
-        async with session.begin():
             session.add(PostLogModel(post_id=post_id, reviewer_id=eff_user.id, operate_type="system",
-                                     operate_time=int(time.time()), msg=reason[reason_index]))
+                                     operate_time=int(time.time()), msg=reason_msg))
     rev_ret = await check_post_status(post_data, context)
     if rev_ret == 2:
         await query.answer("❎拒绝理由已选择，此条投稿已被拒绝。")
+        return 1
     else:
         await query.answer("❌似乎存在错误，请联系开发者。")
+        return 2
 
 
 @check_reviewer
@@ -337,20 +345,20 @@ async def private_vote(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return 1
     post_id = context.user_data["review_private_id"]
     bot_logger.info(f"User {eff_user.id} ({eff_user.full_name}) voted on post {post_id} with result {vote_ret}")
-    if vote_ret == 0:
+    if vote_ret == -1:
         await eff_user.send_message("❗️投票失败，可能是因为此条投稿已被处理或不存在，请稍后再试。")
         return
-    elif vote_ret == 1 or vote_ret == 3:
+    elif vote_ret == PostStatus.APPROVED.value or vote_ret == PostStatus.PENDING.value or vote_ret == PostStatus.REJECTED.value:  # 审核通过/未审核完成 需要投票
         await update.effective_message.delete()
-        await private_review(update,context)
+        await private_review(update, context)
         return
-    elif vote_ret == 2:
+    elif vote_ret == PostStatus.NEED_REASON.value:
         keyboard = []
         reason = ReviewConfig.REJECTION_REASON
         for i in range(0, len(reason), 2):
-            row = [InlineKeyboardButton(reason[i], callback_data=f"private_reason_{post_id}_{i}")]
+            row = [InlineKeyboardButton(reason[i], callback_data=f"pri#reason_{post_id}_{i}")]
             if i + 1 < len(reason):
-                row.append(InlineKeyboardButton(reason[i + 1], callback_data=f"private_reason_{post_id}_{i + 1}"))
+                row.append(InlineKeyboardButton(reason[i + 1], callback_data=f"pri#reason_{post_id}_{i + 1}"))
             keyboard.append(row)
         keyboard.append(
             [
@@ -358,7 +366,7 @@ async def private_vote(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     "自定义理由",
                     switch_inline_query_current_chat=f"private_reject_{post_id}# ",
                 ),
-                InlineKeyboardButton("忽略此投稿", callback_data="private_reason_skip"),
+                InlineKeyboardButton("忽略此投稿", callback_data="pri#reason_skip"),
                 InlineKeyboardButton(
                     "💬 回复投稿人",
                     switch_inline_query_current_chat=f"private_reply_{post_id}# ",
@@ -368,3 +376,13 @@ async def private_vote(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.effective_message.edit_text('请选择拒绝理由', parse_mode="HTML",
                                                  reply_markup=InlineKeyboardMarkup(keyboard))
         return
+
+
+@check_reviewer
+async def private_choose_reason(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    ret = await choose_reason(update, context)
+    if ret != 1:
+        await update.effective_user.send_message("❗️拒绝理由选择失败，请重新操作。")
+        return
+    await private_review(update, context)
+    return
