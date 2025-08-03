@@ -7,9 +7,11 @@ from telegram.ext import ContextTypes
 
 from src.bot import check_reviewer
 from src.bot.callback import check_duplicate_cbq
+from src.bot.command.admin import private_review
 from src.config import ReviewConfig
 from src.database.posts import get_post_db, PostLogModel, VoteType, PostModel, PostStatus
 from src.database.users import UserOperation, get_users_db, SubmitterModel
+from src.logger import bot_logger
 from src.utils import MEDIA_GROUP_TYPES, generate_reject_keyboard, notify_submitter
 
 
@@ -110,7 +112,7 @@ async def check_post_status(post_data: PostModel, context: ContextTypes.DEFAULT_
         await context.bot.edit_message_text(msg, ReviewConfig.REVIEWER_GROUP, post_data.operate_msg_id,
                                             parse_mode="HTML", reply_markup=keyboard)
         if not chat_id:
-            return 1  # 已拒绝但未选择理由
+            return 2  # 已拒绝但未选择理由
         send_text = post_data.text
         # 审核评论处理
         if post_data.other:
@@ -157,6 +159,7 @@ async def check_post_status(post_data: PostModel, context: ContextTypes.DEFAULT_
                 post_data.publish_msg_id = pub_msg_id
                 post_data.finish_at = int(time.time())
                 await post_db_session.merge(post_data)
+    bot_logger.info(f"Post {post_data.id} status updated to {post_data.status} by reviewer {last_reviewer_id}")
     if post_data.status == PostStatus.APPROVED.value:
         await notify_submitter(post_data, context, "您的投稿已通过审核！")
         return 1
@@ -167,7 +170,7 @@ async def check_post_status(post_data: PostModel, context: ContextTypes.DEFAULT_
 
 @check_reviewer
 @check_duplicate_cbq
-async def vote_post(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def vote_post(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     query = update.callback_query
     eff_user = update.effective_user
     query_data = query.data.split("_")
@@ -179,6 +182,9 @@ async def vote_post(update: Update, context: ContextTypes.DEFAULT_TYPE):
         is_nsfw = True
         post_id = int(query_data[2])
     vote_type = query_data[0]
+    if vote_type.startswith("private"):
+        vote_type = vote_type.replace("private#", "")
+    bot_logger.info(f"User {eff_user.id} ({eff_user.full_name}) voted on post {post_id} with type {vote_type}")
     is_change_vote = False
     # 获取稿件的信息
     async with get_post_db() as session:
@@ -187,10 +193,10 @@ async def vote_post(update: Update, context: ContextTypes.DEFAULT_TYPE):
             post_data = result.scalar_one_or_none()
             if not post_data:
                 await query.answer("❗️投稿不存在或已被处理，请稍后再试。")
-                return
+                return 0
             if post_data.status != PostStatus.PENDING.value:
                 await query.answer("❗️投稿已被处理，请稍后再试。")
-                return
+                return 0
             result = await session.execute(select(PostLogModel).filter_by(post_id=post_id, reviewer_id=eff_user.id))
             existing_log = result.scalar_one_or_none()
             if existing_log:
@@ -205,7 +211,7 @@ async def vote_post(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if is_change_vote:
                 if existing_log.vote == vote_value:
                     await query.answer("❗️您已对此投稿投过相同的投票，请勿重复操作。")
-                    return
+                    return 0
                 existing_log.vote = vote_value
                 existing_log.operate_time = int(time.time())
                 await session.merge(existing_log)
@@ -221,17 +227,19 @@ async def vote_post(update: Update, context: ContextTypes.DEFAULT_TYPE):
         other_msg = "投票已更改"
     else:
         other_msg = "投票成功"
+    bot_logger.info(f"Post {post_id} with result {rev_ret}")
     if rev_ret == 1:
         await query.answer(f"✅{other_msg}，此条投稿已通过")
-        return
+        return 1
     elif rev_ret == 2:
         await query.answer(f"❎{other_msg}，此条投稿已被拒绝")
+        return 2
     elif rev_ret == 3:
         await query.answer(f"✅{other_msg}~")
-        return
+        return 3
     else:
         await query.answer("❗️投票失败，可能是因为此条投稿已被处理或不存在，请稍后再试。")
-        return
+        return 0
 
 
 @check_reviewer
@@ -318,3 +326,45 @@ async def vote_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
         elif vote_info == VoteType.APPROVE_NSFW.value:
             vote_type = "您的投票是以 NSFW 通过"
         await query.answer(f"✅{vote_type}。")
+
+
+@check_reviewer
+async def private_vote(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    eff_user = update.effective_user
+    vote_ret = await vote_post(update, context)
+    if "review_private_id" not in context.user_data:
+        await eff_user.send_message("❗️请重新发送命令开始审核。")
+        return 1
+    post_id = context.user_data["review_private_id"]
+    bot_logger.info(f"User {eff_user.id} ({eff_user.full_name}) voted on post {post_id} with result {vote_ret}")
+    if vote_ret == 0:
+        await eff_user.send_message("❗️投票失败，可能是因为此条投稿已被处理或不存在，请稍后再试。")
+        return
+    elif vote_ret == 1 or vote_ret == 3:
+        await update.effective_message.delete()
+        await private_review(update,context)
+        return
+    elif vote_ret == 2:
+        keyboard = []
+        reason = ReviewConfig.REJECTION_REASON
+        for i in range(0, len(reason), 2):
+            row = [InlineKeyboardButton(reason[i], callback_data=f"private_reason_{post_id}_{i}")]
+            if i + 1 < len(reason):
+                row.append(InlineKeyboardButton(reason[i + 1], callback_data=f"private_reason_{post_id}_{i + 1}"))
+            keyboard.append(row)
+        keyboard.append(
+            [
+                InlineKeyboardButton(
+                    "自定义理由",
+                    switch_inline_query_current_chat=f"private_reject_{post_id}# ",
+                ),
+                InlineKeyboardButton("忽略此投稿", callback_data="private_reason_skip"),
+                InlineKeyboardButton(
+                    "💬 回复投稿人",
+                    switch_inline_query_current_chat=f"private_reply_{post_id}# ",
+                )
+            ]
+        )
+        await update.effective_message.edit_text('请选择拒绝理由', parse_mode="HTML",
+                                                 reply_markup=InlineKeyboardMarkup(keyboard))
+        return

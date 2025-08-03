@@ -1,14 +1,16 @@
 import json
 import time
+from bdb import effective
+from typing import Any, Coroutine
 
 from sqlalchemy import select
-from telegram import Update
-from telegram.ext import ContextTypes
+from telegram import Update, InlineKeyboardMarkup, ReplyKeyboardMarkup, InlineKeyboardButton
+from telegram.ext import ContextTypes, ConversationHandler
 
 from src.bot import check_reviewer
-from src.database.posts import get_post_db, PostModel
+from src.database.posts import get_post_db, PostModel, PostStatus, PostLogModel
 from src.database.users import get_users_db, ReviewerModel, BannedUserModel, SubmitterModel
-from src.utils import notify_submitter
+from src.utils import notify_submitter, MEDIA_GROUP_TYPES
 
 
 @check_reviewer
@@ -152,3 +154,109 @@ async def unban(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 return
             await session.delete(banned_user)
     await update.message.reply_text(f"已解除用户 ID {user_id} 的封禁.")
+
+
+async def get_post_list(u_id: int, page: int = 0) -> bool | list[Any]:
+    print("1344")
+    posts_list = []
+    async with get_post_db() as session:
+        posts = await session.execute(
+            select(PostModel)
+            .filter_by(status=PostStatus.PENDING.value)
+            .offset(page * 100)
+            .limit(100)
+        )
+        posts = posts.scalars().all()
+        if not posts:
+            return False
+        for post in posts:
+            result = await session.execute(
+                select(PostLogModel).filter_by(post_id=post.id, reviewer_id=u_id))
+            logs = result.scalars().all()
+            if not logs:
+                posts_list.append(post.id)
+    print(133, posts_list)
+    return posts_list
+
+
+@check_reviewer
+async def private_review_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    print("Starting private review process")
+    context.user_data["review_posts"] = []
+    context.user_data["review_page"] = 0
+    while True:
+        ret = await get_new_post(update, context)
+        if ret == ConversationHandler.END:
+            return ConversationHandler.END
+        else:
+            if await private_review(update, context) == 2:
+                return 1
+
+
+async def get_new_post(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # 私聊审核
+    eff_user = update.effective_user
+    old_post = context.user_data["review_posts"]
+    if old_post and len(old_post) > 0:
+        return
+    posts_list = []
+    while not posts_list:
+        posts_new_list = await get_post_list(eff_user.id, context.user_data["review_page"])
+        if type(posts_new_list) == bool:
+            await eff_user.send_message("没有待审核的稿件。")
+            return ConversationHandler.END
+        context.user_data["review_page"] += 1
+        posts_list.extend(posts_new_list)
+    context.user_data["review_posts"] = posts_list
+    print(posts_list)
+    return 2
+
+
+async def private_review(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    posts_list = context.user_data.get("review_posts", [])
+    eff_user = update.effective_user
+    if not posts_list:
+        await eff_user.send_message("正在尝试获取新的稿件")
+        return 1
+    cur_post_id = posts_list.pop(0)
+    context.user_data["review_posts"] = posts_list
+    async with get_post_db() as session:
+        post_info = await session.execute(select(PostModel).filter_by(id=cur_post_id))
+        post_info = post_info.scalar_one_or_none()
+        if not post_info:
+            await eff_user.send_message(f"稿件 ID {cur_post_id} 不存在。")
+            return 1
+        # 发送稿件信息
+        # reply_kb = ReplyKeyboardMarkup([
+        #     ["✅SFW通过", "❌拒绝"],
+        #     ["✅NSFW通过", "❌重复投稿拒绝"],
+        #     ["➡️下一条", "/cancel 取消操作"],
+        # ], resize_keyboard=True)
+        cur_id = str(cur_post_id)
+        reply_kb  = InlineKeyboardMarkup([
+            [InlineKeyboardButton("✅SFW通过", callback_data =f"private#approve_{cur_id}"),InlineKeyboardButton("❌拒绝", callback_data =f"private#reject_{cur_id}")],
+            [InlineKeyboardButton("✅NSFW通过", callback_data =f"private#approve_NSFW_{cur_id}"), InlineKeyboardButton("❌重复投稿拒绝", callback_data =f"private#rejectDuplicate_{cur_id}")],
+            [InlineKeyboardButton("➡️下一条", callback_data="next_post"), InlineKeyboardButton("取消操作", callback_data="cancel")]
+        ])
+        send_text = post_info.text
+        async with get_users_db() as udb_session:
+            submitter = await udb_session.execute(
+                select(SubmitterModel).filter_by(user_id=post_info.submitter_id))
+            submitter = submitter.scalar_one_or_none()
+        send_text += "\n\n <b>稿件ID：</b>" + str(post_info.id)
+        send_text += "\n <b>投稿者：</b> @" + submitter.username + f" {submitter.fullname}"
+        # 审核评论处理
+        media_list = json.loads(post_info.attachment)
+        if media_list:
+            media = []
+            for media_item in media_list:
+                media.append(MEDIA_GROUP_TYPES[media_item["media_type"]](media=media_item["media_id"]))
+            msg = await context.bot.send_media_group(chat_id=eff_user.id, media=media, caption=send_text,
+                                                     parse_mode="HTML", reply_markup=reply_kb)
+            msg_id = msg[0].id
+        else:
+            msg = await context.bot.send_message(chat_id=eff_user.id, text=send_text, parse_mode="HTML",
+                                                 reply_markup=reply_kb)
+            msg_id = msg.id
+        context.user_data["review_private_id"] = msg_id
+    return 2

@@ -1,13 +1,15 @@
 import os
 
 from telegram import Update
-from telegram.ext import Application, CallbackQueryHandler, CommandHandler, InlineQueryHandler, MessageHandler, filters
+from telegram.ext import Application, CallbackQueryHandler, CommandHandler, InlineQueryHandler, MessageHandler, filters, \
+    ConversationHandler
 
 from src.bot import message
-from src.bot.callback.review import vote_post, choose_reason, vote_revoke, vote_query
+from src.bot.callback.review import vote_post, choose_reason, vote_revoke, vote_query, private_vote
 from src.bot.callback.submit import confirm_submission
 from src.bot.callback.users import cancel
-from src.bot.command.admin import append_comment, become_reviewer, remove_comment, comment_submitter, ban
+from src.bot.command.admin import append_comment, become_reviewer, remove_comment, comment_submitter, ban, unban, \
+    private_review_start, get_new_post, private_review
 from src.bot.inline import inline_query
 from src.config import BotConfig, Config, ReviewConfig
 from src.logger import bot_logger
@@ -46,6 +48,10 @@ def run_bot():
 
     application.add_handler(CallbackQueryHandler(choose_reason, pattern="^reason_"))
 
+    #私聊审核
+    application.add_handler(CallbackQueryHandler(private_vote, pattern="^private#"))
+
+    #命令回调
     application.add_handler(CommandHandler("append", append_comment, filters=filters.Chat(
         chat_id=ReviewConfig.REVIEWER_GROUP)))
     application.add_handler(CommandHandler("removeAppend", remove_comment, filters=filters.Chat(
@@ -55,6 +61,20 @@ def run_bot():
     application.add_handler(CommandHandler("comment", comment_submitter, filters=filters.Chat(
         chat_id=ReviewConfig.REVIEWER_GROUP)))
     application.add_handler(CommandHandler("ban", ban))
+    application.add_handler(CommandHandler("unban", unban))
+    application.add_handler(CommandHandler("cancel", cancel))
+    # application.add_handler(CommandHandler("review", private_review, filters=filters.ChatType.PRIVATE))
+    conv_handler = ConversationHandler(
+        entry_points=[
+            CommandHandler("review", private_review_start, filters=filters.ChatType.PRIVATE)
+        ],
+        states={
+            1: [CallbackQueryHandler(callback=get_new_post, pattern="next_review_")],
+            2: [MessageHandler(filters=~filters.UpdateType.EDITED_MESSAGE, callback=private_review)],
+        },
+        fallbacks=[CommandHandler("cancel", cancel)],
+    )
+    application.add_handler(conv_handler)
 
     # 内联查询
     application.add_handler(InlineQueryHandler(inline_query))
