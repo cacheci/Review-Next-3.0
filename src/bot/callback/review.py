@@ -125,7 +125,17 @@ async def check_post_status(post_data: PostModel, context: ContextTypes.DEFAULT_
         if media_list:
             media = []
             for media_item in media_list:
-                media.append(MEDIA_GROUP_TYPES[media_item["media_type"]](media=media_item["media_id"]))
+                media_type = media_item["media_type"]
+                if media_type in ["photo", "video"]:
+                    media.append(MEDIA_GROUP_TYPES[media_type](
+                        media=media_item["media_id"],
+                        has_spoiler=is_nsfw
+                    ))
+                else:
+                    media.append(MEDIA_GROUP_TYPES[media_type](
+                        media=media_item["media_id"]
+                    ))
+
             if is_nsfw:
                 inline_keyboard = InlineKeyboardMarkup(
                     [[InlineKeyboardButton("跳到下一条", url=f"https://t.me/")]]
@@ -135,14 +145,17 @@ async def check_post_status(post_data: PostModel, context: ContextTypes.DEFAULT_
                     text="⚠️ #NSFW 提前预警",
                     reply_markup=inline_keyboard,
                 )
-            msg = await context.bot.send_media_group(chat_id=chat_id, media=media, caption=send_text, parse_mode="HTML",
-                                                     has_spoiler=is_nsfw)
+            msg = await context.bot.send_media_group(chat_id=chat_id, media=media, caption=send_text, parse_mode="HTML")
             pub_msg_id = msg[0].id
             if is_nsfw:
-                url_parts = msg[-1].link.rsplit("/", 1)
-                next_url = url_parts[0] + "/" + str(int(url_parts[-1]) + 1)
+                chat_id = str(ReviewConfig.PUBLISH_CHANNEL)
+                if chat_id.startswith("-100"):
+                    chat_id = chat_id[4:]
+                    url = f"https://t.me/c/{chat_id}/{pub_msg_id}"
+                else:
+                    url = f"https://t.me/{chat_id}/{pub_msg_id}"
                 inline_keyboard = InlineKeyboardMarkup(
-                    [[InlineKeyboardButton("跳到下一条", url=next_url)]]
+                    [[InlineKeyboardButton("跳到下一条", url=url)]]
                 )
                 await skip_msg.edit_text(
                     text="⚠️ #NSFW 提前预警", reply_markup=inline_keyboard
@@ -254,14 +267,11 @@ async def choose_reason(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.answer("❗️无效的拒绝理由，请重新选择。")
         return
     post_id = int(query_data[1])
-    if query_data[2] == "skip":
-        reason_msg = ""
-    else:
-        reason_index = int(query_data[2])
-        if reason_index < 0 or reason_index >= len(reason):
-            await query.answer("❗️无效的拒绝理由，请重新选择。")
-            return
-        reason_msg = reason[reason_index]
+    reason_index = int(query_data[2])
+    if reason_index < 0 or reason_index >= len(reason):
+        await query.answer("❗️无效的拒绝理由，请重新选择。")
+        return
+    reason_msg = reason[reason_index]
     async with get_post_db() as session:
         async with session.begin():
             result = await session.execute(select(PostModel).filter_by(id=post_id))
@@ -337,15 +347,18 @@ async def vote_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def private_vote(update: Update, context: ContextTypes.DEFAULT_TYPE):
     eff_user = update.effective_user
     vote_ret = await vote_post(update, context)
-    if "review_private_id" not in context.user_data:
+    if "review_private_post_id" not in context.user_data:
         await eff_user.send_message("❗️请重新发送命令开始审核。")
         return 1
-    post_id = context.user_data["review_private_id"]
+    post_id = context.user_data["review_private_post_id"]
+    post_msg_id = context.user_data["review_private_post_msg_id"]
+    oper_id = context.user_data["review_private_operate_id"]
     if vote_ret == -1:
         await eff_user.send_message("❗️投票失败，可能是因为此条投稿已被处理或不存在，请稍后再试。")
         return
     elif vote_ret == PostStatus.APPROVED.value or vote_ret == PostStatus.PENDING.value or vote_ret == PostStatus.REJECTED.value:  # 审核通过/未审核完成 需要投票
-        await update.effective_message.delete()
+        await context.bot.delete_message(chat_id=eff_user.id,message_id=post_msg_id)
+        await context.bot.delete_message(chat_id=eff_user.id, message_id=oper_id)
         await private_review(update, context)
         return
     elif vote_ret == PostStatus.NEED_REASON.value:
@@ -358,16 +371,19 @@ async def private_vote(update: Update, context: ContextTypes.DEFAULT_TYPE):
             keyboard.append(row)
         keyboard.append(
             [
-                InlineKeyboardButton("自定义理由", switch_inline_query_current_chat=f"private_reject_{post_id}# "),
-                InlineKeyboardButton("忽略此投稿", callback_data="pri#reason_skip"),
+                InlineKeyboardButton("自定义理由", switch_inline_query_current_chat=f"customReason_{post_id}# "),
+                InlineKeyboardButton("忽略此投稿", callback_data= f"pri#reason_{post_id}_skip"),
                 InlineKeyboardButton(
                     "💬 回复投稿人",
-                    switch_inline_query_current_chat=f"private_reply_{post_id}# ",
+                    switch_inline_query_current_chat=f"reply_{post_id}# ",
                 )
             ]
         )
-        await update.effective_message.edit_text('请选择拒绝理由', parse_mode="HTML",
-                                                 reply_markup=InlineKeyboardMarkup(keyboard))
+        await context.bot.edit_message_reply_markup(
+            chat_id=eff_user.id,
+            message_id=oper_id,
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
         return
 
 
@@ -377,5 +393,9 @@ async def private_choose_reason(update: Update, context: ContextTypes.DEFAULT_TY
     if ret != 1:
         await update.effective_user.send_message("❗️拒绝理由选择失败，请重新操作。")
         return
+    post_msg_id = context.user_data["review_private_post_msg_id"]
+    oper_id = context.user_data["review_private_operate_id"]
+    await context.bot.delete_message(chat_id=update.effective_user.id, message_id=post_msg_id)
+    await context.bot.delete_message(chat_id=update.effective_user.id, message_id=oper_id)
     await private_review(update, context)
     return

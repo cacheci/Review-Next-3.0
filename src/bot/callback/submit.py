@@ -20,7 +20,7 @@ async def confirm_submission(update: Update, context: ContextTypes.DEFAULT_TYPE)
     user = update.effective_user
     origin_message = update.effective_message.reply_to_message
 
-    text = origin_message.text_markdown_v2_urled or origin_message.caption_markdown_v2_urled or ""
+    text = origin_message.text_html_urled or origin_message.caption_html_urled or ""
     # add forward origin
     if origin_message.forward_origin is not None:
         forward_string = "\n\n<i>from</i> "
@@ -80,6 +80,7 @@ async def confirm_submission(update: Update, context: ContextTypes.DEFAULT_TYPE)
         msg = await context.bot.send_media_group(chat_id=ReviewConfig.REVIEWER_GROUP, media=media, caption=text,
                                                  parse_mode="HTML")
         msg_id = msg[0].id
+        msg = msg[0]
     clear_media_group(origin_message.media_group_id)
 
     send_msg = f"❔ 待审稿件\n投稿人： {user.full_name} (@{user.username}, {user.id})\n\n#USER_{user.id} #SUBMITTER_{user.id} #PENDING"
@@ -95,7 +96,7 @@ async def confirm_submission(update: Update, context: ContextTypes.DEFAULT_TYPE)
     async with get_post_db() as session:
         async with session.begin():
             post_data = PostModel(id=int(post_id), submitter_id=user.id, text=text,
-                                  attachment=json.dumps(media_database),
+                                  attachment=json.dumps(media_database), submitter_msg_id=origin_message.id,
                                   review_msg_id=msg_id, operate_msg_id=operate_msg.id, created_at=int(time.time()))
             session.add(post_data)
 

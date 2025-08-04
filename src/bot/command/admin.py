@@ -91,7 +91,7 @@ async def become_reviewer(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 
 @check_reviewer
-async def comment_submitter(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def reply_submitter(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     arg = context.args
     if len(arg) != 2:
         await update.message.reply_text("格式错误")
@@ -235,18 +235,19 @@ async def private_review(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
         # 发送稿件信息
         cur_id = str(cur_post_id)
-        reply_kb  = InlineKeyboardMarkup([
-            [InlineKeyboardButton("✅SFW通过", callback_data =f"private#approve_{cur_id}"),InlineKeyboardButton("❌拒绝", callback_data =f"private#reject_{cur_id}")],
-            [InlineKeyboardButton("✅NSFW通过", callback_data =f"private#approve_NSFW_{cur_id}"), InlineKeyboardButton("❌重复投稿拒绝", callback_data =f"private#rejectDuplicate_{cur_id}")],
-            [InlineKeyboardButton("➡️下一条", callback_data="next_post"), InlineKeyboardButton("取消操作", callback_data="cancel")]
+        reply_kb = InlineKeyboardMarkup([
+            [InlineKeyboardButton("✅SFW通过", callback_data=f"private#approve_{cur_id}"),
+             InlineKeyboardButton("❌拒绝", callback_data=f"private#reject_{cur_id}")],
+            [InlineKeyboardButton("✅NSFW通过", callback_data=f"private#approve_NSFW_{cur_id}"),
+             InlineKeyboardButton("❌重复投稿拒绝", callback_data=f"private#rejectDuplicate_{cur_id}")],
+            [InlineKeyboardButton("➡️下一条", callback_data="next_post"),
+             InlineKeyboardButton("取消操作", callback_data="cancel")]
         ])
         send_text = post_info.text
         async with get_users_db() as udb_session:
             submitter = await udb_session.execute(
                 select(SubmitterModel).filter_by(user_id=post_info.submitter_id))
             submitter = submitter.scalar_one_or_none()
-        send_text += "\n\n <b>稿件ID：</b>" + str(post_info.id)
-        send_text += "\n <b>投稿者：</b> @" + submitter.username + f" {submitter.fullname}"
         # 审核评论处理
         media_list = json.loads(post_info.attachment)
         if media_list:
@@ -254,11 +255,16 @@ async def private_review(update: Update, context: ContextTypes.DEFAULT_TYPE):
             for media_item in media_list:
                 media.append(MEDIA_GROUP_TYPES[media_item["media_type"]](media=media_item["media_id"]))
             msg = await context.bot.send_media_group(chat_id=eff_user.id, media=media, caption=send_text,
-                                                     parse_mode="HTML", reply_markup=reply_kb)
+                                                     parse_mode="HTML")
             msg_id = msg[0].id
+            msg = msg[0]
         else:
-            msg = await context.bot.send_message(chat_id=eff_user.id, text=send_text, parse_mode="HTML",
-                                                 reply_markup=reply_kb)
+            msg = await context.bot.send_message(chat_id=eff_user.id, text=send_text, parse_mode="HTML")
             msg_id = msg.id
-        context.user_data["review_private_id"] = msg_id
+        send_msg = "\n\n <b>稿件ID：</b>" + str(post_info.id)
+        send_msg += "\n <b>投稿者：</b> @" + submitter.username + f" {submitter.fullname}"
+        op_msg = await msg.reply_text(text=send_msg, parse_mode="HTML", reply_markup=reply_kb, do_quote=True)
+        context.user_data["review_private_post_id"] = cur_id
+        context.user_data["review_private_post_msg_id"] = msg_id
+        context.user_data["review_private_operate_id"] = op_msg.id
     return

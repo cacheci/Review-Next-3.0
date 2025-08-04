@@ -24,8 +24,8 @@ async def inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         data = query.split("#", 1)
         id_data = data[0].replace("append_", "")
         id_data = int(id_data.strip())
-        comment_text = data[1].strip() if len(data) > 1 else None
-        if not comment_text:
+        reply_text = data[1].strip() if len(data) > 1 else None
+        if not reply_text:
             await update.inline_query.answer(
                 [InlineQueryResultArticle(
                     id=str(uuid4()),
@@ -37,8 +37,8 @@ async def inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         await update.inline_query.answer(
             [InlineQueryResultArticle(
                 id=str(uuid4()),
-                title=f"点此确认添加备注：{comment_text}",
-                input_message_content=InputTextMessageContent(f"/append {id_data} {comment_text}")
+                title=f"点此确认添加备注：{reply_text}",
+                input_message_content=InputTextMessageContent(f"/append {id_data} {reply_text}")
             )]
         )
     elif query.startswith("removeAppend_"):
@@ -52,13 +52,13 @@ async def inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
                 input_message_content=InputTextMessageContent(f"/removeAppend {id_data}")
             )]
         )
-    elif query.startswith("comment_"):
+    elif query.startswith("reply_"):
         # 删除备注
         data = query.split("#", 1)
-        id_data = data[0].replace("comment_", "")
+        id_data = data[0].replace("reply_", "")
         id_data = int(id_data.strip())
-        comment_text = data[1].strip() if len(data) > 1 else None
-        if not comment_text:
+        reply_text = data[1].strip() if len(data) > 1 else None
+        if not reply_text:
             await update.inline_query.answer(
                 [InlineQueryResultArticle(
                     id=str(uuid4()),
@@ -70,7 +70,7 @@ async def inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         await update.inline_query.answer(
             [InlineQueryResultArticle(
                 id=str(uuid4()),
-                title=f"点此回复内容：{comment_text}",
-                input_message_content=InputTextMessageContent(f"/comment {id_data} {comment_text}")
+                title=f"点此回复内容：{reply_text}",
+                input_message_content=InputTextMessageContent(f"/reply {id_data} {reply_text}")
             )]
         )

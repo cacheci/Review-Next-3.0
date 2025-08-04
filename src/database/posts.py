@@ -30,6 +30,7 @@ class PostModel(PostBase):
     attachment: Mapped[str] = mapped_column(String, nullable=True, comment='稿件附件(json内容)')
     submitter_id: Mapped[int] = mapped_column(Integer, comment='投稿者id')
     status: Mapped[int] = mapped_column(Integer, default=PostStatus.PENDING.value, comment='稿件状态')
+    submitter_msg_id: Mapped[int] = mapped_column(Integer, nullable=True, comment='投稿者消息id')
     review_msg_id: Mapped[int] = mapped_column(Integer, nullable=True, comment='审核群内消息id')
     operate_msg_id: Mapped[int] = mapped_column(Integer, nullable=True, comment='操作消息id')
     publish_msg_id: Mapped[int] = mapped_column(Integer, nullable=True, comment='发布消息id')  # 如果是拒稿的话，那么就是拒稿频道的id

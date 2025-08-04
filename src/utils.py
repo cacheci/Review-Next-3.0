@@ -73,7 +73,7 @@ def generate_review_keyboard(post_id: str, ) -> InlineKeyboardMarkup:
             [
                 InlineKeyboardButton(
                     "💬 回复投稿人",
-                    switch_inline_query_current_chat=f"comment_{post_id}# ",
+                    switch_inline_query_current_chat=f"reply_{post_id}# ",
                 ),
             ],
         ]
@@ -94,7 +94,7 @@ def generate_reject_keyboard(post_id: str, ) -> InlineKeyboardMarkup:
                 "自定义理由",
                 switch_inline_query_current_chat=f"customReason_{post_id}# ",
             ),
-            InlineKeyboardButton("忽略此投稿", callback_data="reason_skip"),
+            InlineKeyboardButton("忽略此投稿[待开发]", callback_data=f"reason_{post_id}_skip"),
         ]
     )
     keyboard.append(
@@ -143,4 +143,5 @@ async def notify_submitter(post_data: PostModel, context: ContextTypes.DEFAULT_T
         text=message_text,
         reply_markup=keyboard,
         parse_mode="HTML",
+        reply_to_message_id = post_data.submitter_msg_id
     )
