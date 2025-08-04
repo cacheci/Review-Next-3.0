@@ -278,19 +278,19 @@ async def check_post_status(post_data: PostModel, context: ContextTypes.DEFAULT_
                     [[InlineKeyboardButton("跳到下一条", url=f"https://t.me/")]]
                 )
                 skip_msg = await context.bot.send_message(
-                    chat_id=ReviewConfig.PUBLISH_CHANNEL,
+                    chat_id=chat_id,
                     text="⚠️ #NSFW 提前预警",
                     reply_markup=inline_keyboard,
                 )
             msg = await context.bot.send_media_group(chat_id=chat_id, media=media, caption=send_text, parse_mode="HTML")
             pub_msg_id = msg[0].id
             if is_nsfw:
-                chat_id = str(ReviewConfig.PUBLISH_CHANNEL)
-                if chat_id.startswith("-100"):
-                    chat_id = chat_id[4:]
-                    url = f"https://t.me/c/{chat_id}/{pub_msg_id}"
+                pub_chat_id = str(chat_id)
+                if pub_chat_id.startswith("-100"):
+                    pub_chat_id = pub_chat_id[4:]
+                    url = f"https://t.me/c/{pub_chat_id}/{pub_msg_id}"
                 else:
-                    url = f"https://t.me/{chat_id}/{pub_msg_id}"
+                    url = f"https://t.me/{pub_chat_id}/{pub_msg_id}"
                 inline_keyboard = InlineKeyboardMarkup(
                     [[InlineKeyboardButton("跳到下一条", url=url)]]
                 )
@@ -299,7 +299,7 @@ async def check_post_status(post_data: PostModel, context: ContextTypes.DEFAULT_
                 )
         else:
             msg = await context.bot.send_message(
-                chat_id=ReviewConfig.PUBLISH_CHANNEL,
+                chat_id=chat_id,
                 text=send_text,
                 parse_mode="HTML"
             )
