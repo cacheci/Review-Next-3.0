@@ -64,6 +64,8 @@ def run_bot():
     application.add_handler(CommandHandler("ban", ban))
     application.add_handler(CommandHandler("unban", unban))
 
+    application.add_handler(CommandHandler("update", unban))
+
     conv_handler = ConversationHandler(
         entry_points=[
             CommandHandler("review", private_review_start, filters=filters.ChatType.PRIVATE)

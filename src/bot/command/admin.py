@@ -1,4 +1,7 @@
 import json
+import os
+import subprocess
+import sys
 import time
 from typing import Any
 
@@ -7,11 +10,24 @@ from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import ContextTypes, ConversationHandler
 
 from src.bot import check_reviewer
+from src.config import BotConfig
 from src.database.posts import get_post_db, PostModel, PostStatus, PostLogModel
 from src.database.users import get_users_db, ReviewerModel, BannedUserModel, SubmitterModel
 from src.logger import bot_logger
 from src.utils import notify_submitter, MEDIA_GROUP_TYPES, check_post_status
 
+
+async def update(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_user.id not in BotConfig.ADMIN:
+        await update.message.reply_text("您没有权限执行此操作。")
+        return
+    try:
+        subprocess.run(['git', 'pull'], check=True)
+        await update.message.reply_text("Git 同步完成，正在重启")
+        python = sys.executable
+        os.execl(python, python, *sys.argv)
+    except subprocess.CalledProcessError:
+        await update.message.reply_text("更新失败，请检查日志")
 
 @check_reviewer
 async def append_comment(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
