@@ -1,0 +1,11 @@
+version: '3'
+
+services:
+  Review-Next:
+    build:
+      context: .
+    volumes:
+      - ./database:/app/database
+      - ./config.toml:/app/config.toml
+    container_name: Review-Next
+    restart: always
