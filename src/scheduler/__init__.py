@@ -1,7 +1,6 @@
 """
 定时任务
 """
-import logging
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.schedulers.background import BackgroundScheduler

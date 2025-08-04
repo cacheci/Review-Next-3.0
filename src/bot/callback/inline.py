@@ -74,3 +74,24 @@ async def inline_query(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
                 input_message_content=InputTextMessageContent(f"/reply {id_data} {reply_text}")
             )]
         )
+    elif query.startswith("customReason_"):
+        data = query.split("#", 1)
+        id_data = data[0].replace("customReason_", "")
+        id_data = int(id_data.strip())
+        reason = data[1].strip() if len(data) > 1 else None
+        if not reason:
+            await update.inline_query.answer(
+                [InlineQueryResultArticle(
+                    id=str(uuid4()),
+                    title="请在输入框内输入拒绝理由",
+                    input_message_content=InputTextMessageContent("请在输入框内输入拒绝理由")
+                )]
+            )
+            return None
+        await update.inline_query.answer(
+            [InlineQueryResultArticle(
+                id=str(uuid4()),
+                title=f"点此回复内容：{reason}",
+                input_message_content=InputTextMessageContent(f"/customReason {id_data} {reason}")
+            )]
+        )

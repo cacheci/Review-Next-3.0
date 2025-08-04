@@ -1,6 +1,6 @@
 from asyncio import sleep
 
-from telegram import Update, ReplyKeyboardRemove
+from telegram import Update
 from telegram.ext import ContextTypes
 
 

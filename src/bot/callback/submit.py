@@ -13,6 +13,7 @@ from src.database.users import UserOperation
 from src.utils import get_media_group, clear_media_group, MEDIA_GROUP_TYPES, generate_review_keyboard
 
 
+# noinspection PyUnresolvedReferences
 @check_banned
 async def confirm_submission(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query

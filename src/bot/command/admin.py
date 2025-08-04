@@ -1,17 +1,16 @@
 import json
 import time
-from bdb import effective
-from typing import Any, Coroutine
+from typing import Any
 
 from sqlalchemy import select
-from telegram import Update, InlineKeyboardMarkup, ReplyKeyboardMarkup, InlineKeyboardButton
+from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import ContextTypes, ConversationHandler
 
 from src.bot import check_reviewer
 from src.database.posts import get_post_db, PostModel, PostStatus, PostLogModel
 from src.database.users import get_users_db, ReviewerModel, BannedUserModel, SubmitterModel
 from src.logger import bot_logger
-from src.utils import notify_submitter, MEDIA_GROUP_TYPES
+from src.utils import notify_submitter, MEDIA_GROUP_TYPES, check_post_status
 
 
 @check_reviewer
@@ -109,6 +108,33 @@ async def reply_submitter(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             return
         await notify_submitter(post_info, context, comment)
     await update.message.reply_text("已向投稿者发送评论。")
+
+
+async def custom_reason(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    arg = context.args
+    if len(arg) != 2:
+        await update.message.reply_text("格式错误")
+        return
+    post_id, reason_msg = context.args
+    post_id = int(post_id)
+    eff_user = update.effective_user
+    async with get_post_db() as session:
+        async with session.begin():
+            result = await session.execute(select(PostModel).filter_by(id=post_id))
+            post_data = result.scalar_one_or_none()
+            if not post_data:
+                await update.effective_message.reply_text("❗️投稿不存在或已被处理，请稍后再试。")
+                return
+            if post_data.status != PostStatus.NEED_REASON.value:
+                await update.effective_message.reply_text("❗️投稿状态不正确，请稍后再试。")
+                return
+            session.add(PostLogModel(post_id=post_id, reviewer_id=eff_user.id, operate_type="system",
+                                     operate_time=int(time.time()), msg=reason_msg))
+    rev_ret = await check_post_status(post_data, context)
+    if rev_ret == 2:
+        await update.effective_message.reply_text("❎拒绝理由已选择，此条投稿已被拒绝。")
+    else:
+        await update.effective_message.reply_text("❌似乎存在错误，请联系开发者。")
 
 
 @check_reviewer
