@@ -10,6 +10,8 @@ ROOT_PATH: Path = Path(__file__ + '/../..').resolve()
 bot_logger = logging.getLogger('bot')
 scheduler_logger = logging.getLogger('scheduler')
 db_logger = logging.getLogger('database')
+httpx_logger = logging.getLogger('httpx')
+httpx_logger.setLevel(Config.HTTPX_LOG_LEVE)
 
 logging.basicConfig(level=Config.LOG_LEVE, stream=sys.stdout,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
