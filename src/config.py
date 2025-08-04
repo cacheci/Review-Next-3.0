@@ -61,7 +61,6 @@ class Config(BaseConfig):
     LOG_LEVE: int = 20  # 日志等级
     SQLALCHEMY_LOG = False  # 是否开启SQLAlchemy日志
     PROXY: str = None  # 代理
-    MAX_RETRY: int = 3  # 重试次数
     DATABASES_DIR: Path = ROOT_PATH / 'database'  # 数据库路径
 
 
@@ -72,7 +71,7 @@ class BotConfig(BaseConfig):
     ADMIN: list = [0]  # 管理员账号
     BOT_TOKEN: str = ""  # 机器人 Token
     BASE_URL: str = "https://api.telegram.org/bot"  # 自定义URL
-    TIMEOUT: int = 10  # bot请求/读取超时时间
+    TIMEOUT: int = 60  # bot请求/读取超时时间
 
 
 class ReviewConfig(BaseConfig):
@@ -86,9 +85,9 @@ class ReviewConfig(BaseConfig):
                               "内容NSFW或引起感官不适", "没有GET到梗", "内容不在可接受范围内", "禁止纯链接投稿"]  # 拒稿理由
     REJECT_NUMBER_REQUIRED: int = 2  # 拒稿所需的最小审核人数
     APPROVE_NUMBER_REQUIRED: int = 2  # 通过所需的最小审核人数
-    REJECT_REASON_USER_LIMIT: bool = False  # 是否限制只能由原拒稿人选择拒稿理由
+    # REJECT_REASON_USER_LIMIT: bool = False  # 是否限制只能由原拒稿人选择拒稿理由（没写这个）
     RETRACT_NOTIFY: bool = True  # 是否通知投稿者稿件被驳回
-    BANNED_NOTIFY: bool = True  # 是否通知投稿者已被屏蔽
+    # BANNED_NOTIFY: bool = True  # 是否通知投稿者已被屏蔽（没写这个）
 
 
 Config.update_from_toml()
