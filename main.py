@@ -12,6 +12,7 @@ from src.bot.callback.submit import confirm_submission
 from src.bot.callback.users import cancel
 from src.bot.command.admin import append_comment, become_reviewer, remove_comment, reply_submitter, ban, unban, \
     private_review_start, private_review, custom_reason
+from src.bot.command.user import help_info
 from src.config import BotConfig, Config, ReviewConfig
 from src.logger import bot_logger
 
@@ -55,6 +56,8 @@ def run_bot():
     application.add_handler(CallbackQueryHandler(private_choose_reason, pattern="^pri#reason_"))
 
     # 命令回调
+    application.add_handler(CommandHandler("help", help_info))
+    application.add_handler(CommandHandler("start", help_info))
     application.add_handler(CommandHandler("append", append_comment))
     application.add_handler(CommandHandler("removeAppend", remove_comment))
     application.add_handler(CommandHandler("reviewer", become_reviewer, filters=filters.Chat(
