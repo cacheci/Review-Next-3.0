@@ -11,7 +11,7 @@ from src.bot.callback.review import vote_post, choose_reason, vote_revoke, vote_
 from src.bot.callback.submit import confirm_submission
 from src.bot.callback.users import cancel
 from src.bot.command.admin import append_comment, become_reviewer, remove_comment, reply_submitter, ban, unban, \
-    private_review_start, private_review, custom_reason
+    private_review_start, private_review, custom_reason, update
 from src.bot.command.user import help_info
 from src.config import BotConfig, Config, ReviewConfig
 from src.logger import bot_logger
@@ -67,7 +67,7 @@ def run_bot():
     application.add_handler(CommandHandler("ban", ban))
     application.add_handler(CommandHandler("unban", unban))
 
-    application.add_handler(CommandHandler("update", unban))
+    application.add_handler(CommandHandler("update", update))
 
     conv_handler = ConversationHandler(
         entry_points=[
