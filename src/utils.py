@@ -42,7 +42,7 @@ def generate_review_keyboard(post_id: str, ) -> InlineKeyboardMarkup:
                 ),
                 InlineKeyboardButton(
                     "🟡 以 NSFW 通过",
-                    callback_data=f"approve_NSFW_{post_id}",
+                    callback_data=f"approve_{post_id}_NSFW",
                 ),
             ],
             [
@@ -121,12 +121,16 @@ async def notify_submitter(post_data: PostModel, context: ContextTypes.DEFAULT_T
         if chat_id.startswith("-100"):
             chat_id = chat_id[4:]
             url = f"https://t.me/c/{chat_id}/{post_msg_id}"
+            keyboard = InlineKeyboardMarkup(
+                [[InlineKeyboardButton("在频道中查看", url=url),
+                  InlineKeyboardButton("查看评论区", url=f"{url}?thread={post_msg_id}" )]]
+            )
         else:
             url = f"https://t.me/{chat_id}/{post_msg_id}"
-        keyboard = InlineKeyboardMarkup(
-            [[InlineKeyboardButton("在频道中查看", url=url),
-              InlineKeyboardButton("查看评论区", url=url + "?comment=1")]]
-        )
+            keyboard = InlineKeyboardMarkup(
+                [[InlineKeyboardButton("在频道中查看", url=url),
+                  InlineKeyboardButton("查看评论区", url=url + "?comment=1")]]
+            )
     elif post_data.status == PostStatus.REJECTED.value:
         if not ReviewConfig.RETRACT_NOTIFY:
             return

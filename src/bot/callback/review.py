@@ -19,12 +19,9 @@ async def vote_post(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     eff_user = update.effective_user
     query_data = query.data.split("_")
     is_nsfw = False
-    post_id = 0
-    if len(query_data) == 2:
-        post_id = int(query_data[1])
-    elif len(query_data) == 3:
+    post_id = int(query_data[1])
+    if len(query_data) == 3:
         is_nsfw = True
-        post_id = int(query_data[2])
     vote_type = query_data[0]
     if vote_type.startswith("private"):
         vote_type = vote_type.replace("private#", "")
