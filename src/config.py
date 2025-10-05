@@ -75,6 +75,8 @@ class BotConfig(BaseConfig):
     BASE_URL: str = "https://api.telegram.org/bot"  # 自定义URL
     TIMEOUT: int = 60  # bot请求/读取超时时间
 
+class Config_submit(BaseConfig):
+    SUBMIT_DELETE_WHEN_CANCEL: bool = False
 
 class ReviewConfig(BaseConfig):
     """
@@ -96,7 +98,7 @@ class ReviewConfig(BaseConfig):
     RETRACT_NOTIFY: bool = True  # 是否通知投稿者稿件被驳回
     # BANNED_NOTIFY: bool = True  # 是否通知投稿者已被屏蔽（没写这个）
 
-class Config_verify(Config,BotConfig,ReviewConfig):
+class Config_verify(Config,BotConfig,ReviewConfig,Config_submit):
     """
     验证配置
     """
@@ -125,6 +127,8 @@ class Config_verify(Config,BotConfig,ReviewConfig):
             return("fail","Config verify failed: BASE_URL is not correct api URL.")
         if (not isinstance(cls.TIMEOUT, int)):
             return("fail","Config verify failed: TIMEOUT should be int.")
+        if (not isinstance(cls.SUBMIT_DELETE_WHEN_CANCEL, bool)):
+            return("fail","Config verify failed: SUBMIT_DELETE_WHEN_CANCEL should be bool.")
         if (not isinstance(cls.REJECTED_CHANNEL, int)):
             return("fail","Config verify failed: REJECTED_CHANNEL should be int.")
         if not (str(cls.REJECTED_CHANNEL).startswith("-100")):
