@@ -23,8 +23,8 @@ async def vote_post(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     if len(query_data) == 3:
         is_nsfw = True
     vote_type = query_data[0]
-    if vote_type.startswith("private"):
-        vote_type = vote_type.replace("private#", "")
+    if vote_type.startswith("v3.0.private"):
+        vote_type = vote_type.replace("v3.0.private#", "")
     is_change_vote = False
     # 获取稿件的信息
     async with get_post_db() as session:
@@ -42,9 +42,9 @@ async def vote_post(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
             if existing_log:
                 # await query.answer("❗️您已对此投稿投过票，请勿重复操作。")
                 is_change_vote = True
-            if vote_type == "approve":
+            if vote_type == "v3.0.approve":
                 vote_value = VoteType.APPROVE_NSFW.value if is_nsfw else VoteType.APPROVE.value
-            elif vote_type == "reject" or vote_type == "rejectDuplicate":
+            elif vote_type == "v3.0.reject" or vote_type == "v3.0.rejectDuplicate":
                 vote_value = VoteType.REJECT.value
             else:
                 raise ValueError("Invalid vote type")
@@ -59,7 +59,7 @@ async def vote_post(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
                 session.add(
                     PostLogModel(post_id=post_id, reviewer_id=eff_user.id, vote=vote_value, operate_type="reviewer",
                                  operate_time=int(time.time())))
-            if vote_type == "rejectDuplicate":
+            if vote_type == "v3.0.rejectDuplicate":
                 session.add(PostLogModel(post_id=post_id, reviewer_id=eff_user.id, operate_type="system",
                                          operate_time=int(time.time()), msg="已在频道发布或已有人投稿"))
     rev_ret = await check_post_status(post_data, context)

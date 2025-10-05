@@ -29,10 +29,10 @@ async def send_submit_confirmation(message):
         reply_markup=InlineKeyboardMarkup(
             [
                 [
-                    InlineKeyboardButton("署名投稿", callback_data="submitConfirm_real_name"),
-                    InlineKeyboardButton("匿名投稿", callback_data="submitConfirm"),
+                    InlineKeyboardButton("署名投稿", callback_data="v3.0.submitConfirm_real_name"),
+                    InlineKeyboardButton("匿名投稿", callback_data="v3.0.submitConfirm"),
                 ],
-                [InlineKeyboardButton("取消投稿", callback_data="cancel")],
+                [InlineKeyboardButton("取消投稿", callback_data="v3.0.cancel")],
             ]
         ),
         do_quote=True,

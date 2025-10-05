@@ -38,15 +38,15 @@ def run_bot():
     application.add_handler(MessageHandler(filters.ChatType.PRIVATE & ~filters.COMMAND, message.submit_msg))
 
     ## 按钮回调
-    application.add_handler(CallbackQueryHandler(cancel, pattern="cancel"))
+    application.add_handler(CallbackQueryHandler(cancel, pattern="v3.0.cancel"))
     # 确认投稿
-    application.add_handler(CallbackQueryHandler(confirm_submission, pattern="^submitConfirm"))
+    application.add_handler(CallbackQueryHandler(confirm_submission, pattern="^v3.0.submitConfirm"))
     # 审核部分回调
-    application.add_handler(CallbackQueryHandler(vote_post, pattern="^approve_"))
-    application.add_handler(CallbackQueryHandler(vote_post, pattern="^reject_"))
-    application.add_handler(CallbackQueryHandler(vote_post, pattern="^rejectDuplicate_"))
-    application.add_handler(CallbackQueryHandler(vote_query, pattern="^voteQuery_"))
-    application.add_handler(CallbackQueryHandler(vote_revoke, pattern="^voteRevoke_"))
+    application.add_handler(CallbackQueryHandler(vote_post, pattern="^v3.0.approve_"))
+    application.add_handler(CallbackQueryHandler(vote_post, pattern="^v3.0.reject_"))
+    application.add_handler(CallbackQueryHandler(vote_post, pattern="^v3.0.rejectDuplicate_"))
+    application.add_handler(CallbackQueryHandler(vote_query, pattern="^v3.0.voteQuery_"))
+    application.add_handler(CallbackQueryHandler(vote_revoke, pattern="^v3.0.voteRevoke_"))
 
     # 选择拒绝原因
     application.add_handler(CallbackQueryHandler(choose_reason, pattern="^reason_"))

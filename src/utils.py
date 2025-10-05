@@ -38,47 +38,47 @@ def generate_review_keyboard(post_id: str, ) -> InlineKeyboardMarkup:
             [
                 InlineKeyboardButton(
                     "🟢 通过",
-                    callback_data=f"approve_{post_id}",
+                    callback_data=f"v3.0.approve_{post_id}",
                 ),
                 InlineKeyboardButton(
                     "🟡 以 NSFW 通过",
-                    callback_data=f"approve_{post_id}_NSFW",
+                    callback_data=f"v3.0.approve_{post_id}_NSFW",
                 ),
             ],
             [
                 InlineKeyboardButton(
                     "🔴 拒绝",
-                    callback_data=f"reject_{post_id}",
+                    callback_data=f"v3.0.reject_{post_id}",
                 ),
                 InlineKeyboardButton(
                     "🔴 以重复投稿拒绝",
-                    callback_data=f"rejectDuplicate_{post_id}",
+                    callback_data=f"v3.0.rejectDuplicate_{post_id}",
                 ),
             ],
             [
                 InlineKeyboardButton(
                     "❔ 查询我的投票",
-                    callback_data=f"voteQuery_{post_id}",
+                    callback_data=f"v3.0.voteQuery_{post_id}",
                 ),
                 InlineKeyboardButton(
                     "↩️ 撤回我的投票",
-                    callback_data=f"voteRevoke_{post_id}",
+                    callback_data=f"v3.0.voteRevoke_{post_id}",
                 ),
             ],
             [
                 InlineKeyboardButton(
                     "📝 添加备注",
-                    switch_inline_query_current_chat=f"append_{post_id}# ",
+                    switch_inline_query_current_chat=f"v3.0.append_{post_id}# ",
                 ),
                 InlineKeyboardButton(
                     "⬅️ 删除备注",
-                    switch_inline_query_current_chat=f"removeAppend_{post_id}",
+                    switch_inline_query_current_chat=f"v3.0.removeAppend_{post_id}",
                 ),
             ],
             [
                 InlineKeyboardButton(
                     "💬 回复投稿人",
-                    switch_inline_query_current_chat=f"reply_{post_id}# ",
+                    switch_inline_query_current_chat=f"v3.0.reply_{post_id}# ",
                 ),
             ],
         ]

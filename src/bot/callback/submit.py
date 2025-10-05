@@ -37,7 +37,7 @@ async def confirm_submission(update: Update, context: ContextTypes.DEFAULT_TYPE)
         text += forward_string
 
     # add submitter sign string
-    if query.data == "submitConfirm_real_name":
+    if query.data == "v3.0.submitConfirm_real_name":
         sign_string = f"<i>via</i> <a href='tg://user?id={user.id}'>{user.full_name}</a>"
         # if the last line is a forward message, put in the same line
         if text.split("\n")[-1].startswith("<i>from</i>"):
