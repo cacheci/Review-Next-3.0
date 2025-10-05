@@ -13,7 +13,7 @@ from src.bot.callback.users import cancel
 from src.bot.command.admin import append_comment, become_reviewer, remove_comment, reply_submitter, ban, unban, \
     private_review_start, private_review, custom_reason, update
 from src.bot.command.user import help_info
-from src.config import BotConfig, Config, ReviewConfig
+from src.config import BotConfig, Config, ReviewConfig, Config_verify
 from src.logger import bot_logger
 
 if Config.PROXY and Config.PROXY != "":
@@ -88,4 +88,13 @@ def run_bot():
 
 
 if __name__ == "__main__":
-    run_bot()
+    bot_logger.info("Bot loading...")
+    bot_logger.info("Running on "+ os.name + ", CPU " + os.uname().machine + ", Path " + os.getcwd())
+    Config_verify_result, Config_verify_msg = Config_verify().verify()
+    if Config_verify_result == "fail" :
+        bot_logger.error(Config_verify_msg)
+    elif Config_verify_result == "warning":
+        bot_logger.warning(Config_verify_msg)
+        run_bot()
+    else:
+        run_bot()
